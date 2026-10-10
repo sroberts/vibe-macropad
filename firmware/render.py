@@ -28,8 +28,10 @@ QUIET = 0.10      # keys with no state of their own (NEW, RESUME, MODE, ...)
 FLASH = 100       # ms per phase of the cross-agent alert: on, off, on, off
 
 # The Claude app has no shortcut for these, so while it is in front they send
-# nothing. The slot keys keep showing herdr's agents; the rest go dark.
-APP_UNMAPPED = SLOT_LABELS + ("ATTN", "RESUME", "ZOOM", "LAST", "REWIND", "BG")
+# nothing and go dark. (A1..A6 and ATTN ask Tally to open a session instead.)
+APP_UNMAPPED = ("RESUME", "ZOOM", "LAST", "REWIND", "BG")
+APP_SESSION = 0.10   # a slot key with an app session behind it
+APP_SHOWING = 0.50   # the session the app is showing
 
 
 def app_mode(frame, status):
@@ -156,6 +158,19 @@ class Alert:
         return t // FLASH % 2 == 0
 
 
+def _app_fleet_key(label, base, frame):
+    """FLEET in the Claude app: A1..A6 are its sessions, most recent first."""
+    if label in SLOT_LABELS:
+        n = SLOT_LABELS.index(label) + 1
+        count = frame.get("asess")
+        if not isinstance(count, int) or n > count:
+            return OFF
+        return scale(WHITE, APP_SHOWING if frame.get("afocus") == n else APP_SESSION)
+    if label in APP_UNMAPPED:
+        return OFF
+    return scale(base, QUIET)
+
+
 def render(layer, frame, status, held, now, flash=False):
     """12 RGB tuples for the pad.
 
@@ -168,8 +183,9 @@ def render(layer, frame, status, held, now, flash=False):
     flash: Alert.flashing(now); every key shows amber
 
     While the Claude app is in front (app_mode), DRIVE shows the layout's
-    colors on the keys that work there, and FLEET keeps herdr's agents on
-    the slot keys; keys in APP_UNMAPPED are off.
+    colors on the keys that work there, and FLEET's slot keys show the app's
+    sessions (dim, brighter for the one it shows); keys in APP_UNMAPPED are
+    off.
     """
     keys = layer["keys"]
     out = [key[1] for key in keys]  # static studio colors: the fallback
@@ -182,9 +198,7 @@ def render(layer, frame, status, held, now, flash=False):
         else:
             out = [scale(key[1], DIMMED) for key in keys]
         if app:
-            out = [out[i] if key[0] in SLOT_LABELS
-                   else OFF if key[0] in APP_UNMAPPED else scale(key[1], QUIET)
-                   for i, key in enumerate(keys)]
+            out = [_app_fleet_key(key[0], key[1], frame) for key in keys]
     elif layer["name"] == "DRIVE" and app:
         out = [OFF if key[0] in APP_UNMAPPED else key[1] for key in keys]
     elif layer["name"] == "DRIVE" and live:

@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/sroberts/vibe-macropad/internal/claudeapp"
 	"github.com/sroberts/vibe-macropad/internal/daemon"
 	"github.com/sroberts/vibe-macropad/internal/device"
 	"github.com/sroberts/vibe-macropad/internal/front"
@@ -26,8 +27,17 @@ func serve(args []string) error {
 	noApps := fs.Bool("no-apps", false, "don't watch the frontmost app (the pad always sends herdr's keys)")
 	fs.Usage = func() { fmt.Fprint(os.Stderr, usage) }
 	fs.Parse(args)
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	sessions := claudeapp.Dir(home)
 	if !*noApps {
 		cfg.Front = front.Frontmost
+		cfg.AppSessions = func() (int, int) {
+			s, _ := claudeapp.Load(sessions)
+			return len(s), claudeapp.Focused(s)
+		}
 	}
 
 	path, err := herdr.SocketPath()
@@ -52,6 +62,22 @@ func serve(args []string) error {
 		name, port, hello, err := device.Find()
 		return port, fmt.Sprintf("%s (firmware %s, protocol v%d)", name, hello.FW, hello.V), err
 	}, log)
+	if !*noApps {
+		// The pad sends A1..A6 and ATTN here while the Claude app is in front.
+		link.OnKey = func(key string) {
+			go func() {
+				s, _ := claudeapp.Load(sessions)
+				u := claudeapp.Link(key, s)
+				if u == "" {
+					log.Debug("key opens nothing", "key", key, "sessions", len(s))
+					return
+				}
+				if err := claudeapp.Open(u); err != nil {
+					log.Error("Claude app link failed", "key", key, "err", err)
+				}
+			}()
+		}
+	}
 	d := daemon.New(cfg, herdr.New(path), func(f slots.Frame) {
 		line, err := device.EncodeFrame(f.JSON())
 		if err != nil {

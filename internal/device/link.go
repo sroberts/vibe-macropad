@@ -16,12 +16,17 @@ import (
 // and after any error closes the port and connects again after Retry.
 //
 // Send never blocks, so a stuck or missing pad can't hold up the caller.
+//
+// The pad sends a key message when a key it can't act on alone is pressed
+// (A1..A6 and ATTN while the Claude app is in front); Link passes its name to
+// OnKey.
 type Link struct {
 	// Connect opens the pad's data port; name describes it for the log.
 	Connect   func() (port io.ReadWriteCloser, name string, err error)
 	Heartbeat time.Duration
 	Retry     time.Duration
 	Log       *slog.Logger
+	OnKey     func(key string) // called from the reading goroutine; must not block
 
 	frames chan []byte // holds at most the latest frame
 }
@@ -90,11 +95,15 @@ func (l *Link) serve(ctx context.Context, port io.ReadWriter, current *[]byte) e
 	go func() {
 		sc := bufio.NewScanner(port)
 		for sc.Scan() {
-			if isHello(sc.Bytes()) {
+			msg := parse(sc.Bytes())
+			switch {
+			case msg.T == "hello":
 				select {
 				case hellos <- struct{}{}:
 				default:
 				}
+			case msg.T == "key" && msg.K != "" && l.OnKey != nil:
+				l.OnKey(msg.K)
 			}
 		}
 		err := sc.Err()
@@ -136,9 +145,18 @@ func (l *Link) serve(ctx context.Context, port io.ReadWriter, current *[]byte) e
 	}
 }
 
-func isHello(line []byte) bool {
-	var msg struct {
-		T string `json:"t"`
-	}
-	return json.Unmarshal(bytes.TrimSpace(line), &msg) == nil && msg.T == "hello"
+// message is a line from the pad: hello, or key with the key's label.
+type message struct {
+	T string `json:"t"`
+	K string `json:"k"`
 }
+
+func parse(line []byte) message {
+	var msg message
+	if json.Unmarshal(bytes.TrimSpace(line), &msg) != nil {
+		return message{}
+	}
+	return msg
+}
+
+func isHello(line []byte) bool { return parse(line).T == "hello" }

@@ -1,7 +1,7 @@
 """The Claude app in front: render and the OLED, from the frame's app field."""
 import oled
 import render
-from render import AMBER, BLUE, GREEN, LIVE, NONE, OFF, STALE, scale
+from render import AMBER, BLUE, GREEN, LIVE, NONE, OFF, STALE, WHITE, scale
 
 GREY = (60, 60, 60)
 FLEET = {
@@ -48,22 +48,24 @@ def test_drive_shows_layout_colors_on_keys_that_work_in_the_app():
         assert got == (OFF if label in ("REWIND", "BG") else color), label
 
 
-def test_fleet_keeps_herdr_on_the_slot_keys_and_darkens_unmapped_keys():
-    f = frame()
+def test_fleet_shows_app_sessions_on_the_slot_keys_and_darkens_unmapped_keys():
+    f = frame(asess=2, afocus=1)
     out = render.render(FLEET, f, LIVE, set(), BLINK_ON)
-    terminal = render.render(FLEET, frame(app=None), LIVE, set(), BLINK_ON)
-    assert out[:6] == terminal[:6]  # A1 blinks amber, A2 breathes blue, ...
-    assert out[0] == scale(AMBER, render.UNFOCUSED)
-    for n in (6, 8, 9, 10):  # ATTN, RESUME, ZOOM, LAST
+    assert out[0] == scale(WHITE, render.APP_SHOWING)
+    assert out[1] == scale(WHITE, render.APP_SESSION)
+    assert out[2:6] == [OFF] * 4
+    for n in (8, 9, 10):  # RESUME, ZOOM, LAST
         assert out[n] == OFF
+    assert out[6] == scale(AMBER, render.QUIET)  # ATTN: asks Tally
     assert out[7] == scale(BLUE, render.QUIET)   # NEW: Cmd+N
     assert out[11] == scale(GREEN, render.QUIET)  # ENTER: not tied to herdr's focus
 
 
 def test_fleet_in_the_app_with_herdr_offline():
-    out = render.render(FLEET, frame(herdr=False, slots=[None] * 6), LIVE, set(), 0)
-    assert out[:6] == [scale(GREY, render.DIMMED)] * 6
-    assert out[6] == OFF and out[7] == scale(BLUE, render.QUIET)
+    out = render.render(FLEET, frame(herdr=False, slots=[None] * 6, asess=1), LIVE, set(), 0)
+    assert out[0] == scale(WHITE, render.APP_SESSION)  # app sessions don't need herdr
+    assert out[1:6] == [OFF] * 5
+    assert out[6] == scale(AMBER, render.QUIET) and out[8] == OFF
 
 
 def test_stale_frame_falls_back_to_herdr_lighting():
@@ -78,16 +80,16 @@ def test_held_keys_and_the_alert_still_show_in_the_app():
 
 
 def test_unmapped_labels():
-    assert set(render.SLOT_LABELS) <= set(render.APP_UNMAPPED)
-    for label in ("ESC", "MODE", "YES", "ALWAYS", "NO", "TAB", "LOG", "COMPCT", "ENTER", "TALK", "NEW"):
+    assert not set(render.SLOT_LABELS) & set(render.APP_UNMAPPED)
+    for label in ("ESC", "MODE", "YES", "ALWAYS", "NO", "TAB", "LOG", "COMPCT", "ENTER", "TALK", "NEW", "ATTN"):
         assert label not in render.APP_UNMAPPED
 
 
 def test_oled_names_the_app_and_keeps_herdrs_waiting_list():
     text = oled.lines(DRIVE, frame(), LIVE)
     assert text[0] == "DRIVE CLAUDE APP    *"
-    assert text[1] == ""
-    assert text[2] == "A1 WAITING"
+    assert text[1] == "NO SESSIONS"
+    assert text[2] == "HERDR A1 WAITING"
     assert text[3] == "1N 2W 3R 4- 5- 6-"
     assert all(len(line) <= oled.WIDTH for line in text)
 

@@ -42,12 +42,25 @@ type Config struct {
 
 	Front     func() string // the frontmost app's frame value; nil: never set app
 	FrontPoll time.Duration // how often to call Front
+
+	// AppSessions counts the Claude app's Code sessions and says which one
+	// it shows (1-based, 0 unknown). Called at most every SessionPoll, and
+	// only while the app is in front.
+	AppSessions func() (count, focus int)
+	SessionPoll time.Duration
+}
+
+// app is what the front poller tells the actor.
+type app struct {
+	name         string
+	count, focus int
 }
 
 // Defaults is the design doc's configuration.
 func Defaults() Config {
 	return Config{Slots: slots.DefaultSlots, Debounce: 50 * time.Millisecond,
-		SafetyPoll: 2 * time.Second, Retry: 2 * time.Second, FrontPoll: 250 * time.Millisecond}
+		SafetyPoll: 2 * time.Second, Retry: 2 * time.Second, FrontPoll: 250 * time.Millisecond,
+		SessionPoll: time.Second}
 }
 
 // Daemon turns herdr's state into frames.
@@ -59,13 +72,13 @@ type Daemon struct {
 
 	invalidate chan struct{} // cap 1: one pending invalidation covers any number
 	panes      chan []string // cap 1: the latest agent pane set to watch
-	apps       chan string   // cap 1: the latest frontmost app
+	apps       chan app      // cap 1: the latest frontmost app
 }
 
 // New returns a daemon that reads h and passes each new frame to emit.
 func New(cfg Config, h Herdr, emit func(slots.Frame), log *slog.Logger) *Daemon {
 	return &Daemon{cfg: cfg, herdr: h, emit: emit, log: log,
-		invalidate: make(chan struct{}, 1), panes: make(chan []string, 1), apps: make(chan string, 1)}
+		invalidate: make(chan struct{}, 1), panes: make(chan []string, 1), apps: make(chan app, 1)}
 }
 
 // Run blocks until ctx is done.
@@ -88,15 +101,25 @@ func (d *Daemon) front(ctx context.Context) {
 	}
 	t := time.NewTicker(d.cfg.FrontPoll)
 	defer t.Stop()
-	last := ""
+	var last app
+	var read time.Time // when AppSessions last ran
 	for {
-		if app := d.cfg.Front(); app != last {
-			last = app
+		now := app{name: d.cfg.Front()}
+		if now.name == "claude" && d.cfg.AppSessions != nil {
+			if now.name != last.name || time.Since(read) >= d.cfg.SessionPoll {
+				now.count, now.focus = d.cfg.AppSessions()
+				read = time.Now()
+			} else {
+				now.count, now.focus = last.count, last.focus
+			}
+		}
+		if now != last {
+			last = now
 			select {
 			case <-d.apps:
 			default:
 			}
-			d.apps <- app
+			d.apps <- now
 		}
 		select {
 		case <-ctx.Done():
@@ -120,7 +143,8 @@ func (d *Daemon) actor(ctx context.Context) {
 	debounce.Stop()
 	pending := false
 
-	var last, watched, app string
+	var last, watched string
+	var front app
 	var lastErr string
 	var seq uint32
 	refresh := func() {
@@ -145,7 +169,7 @@ func (d *Daemon) actor(ctx context.Context) {
 			slices.Sort(panes)
 		}
 
-		f.App = app
+		f.App, f.ASess, f.AFocus = front.name, front.count, front.focus
 
 		if set := strings.Join(panes, " "); set != watched {
 			watched = set
@@ -180,7 +204,7 @@ func (d *Daemon) actor(ctx context.Context) {
 			refresh()
 		case <-poll.C:
 			refresh()
-		case app = <-d.apps:
+		case front = <-d.apps:
 			refresh()
 		}
 	}

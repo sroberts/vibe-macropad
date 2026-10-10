@@ -218,6 +218,8 @@ Newline-delimited JSON over the CircuitPython USB CDC data port, protocol versio
 | `herdr` | bool | `false` when the daemon cannot reach herdr's socket. |
 | `space` | string, optional | Name of the focused agent's space (herdr workspace `label`), printable ASCII, at most 10 characters. Omitted when nothing is focused or the name is empty. Older firmware ignores it. |
 | `app` | string, optional | `"claude"` while the Claude desktop app is the frontmost app; omitted otherwise. Sent whether or not herdr is reachable. Older firmware ignores it. |
+| `asess` | int, optional | With `app`: how many Code sessions the app lists (A1..A6 open the first six). |
+| `afocus` | int, optional | With `app`: 1-based position of the session the app is showing; omitted when unknown. |
 
 **`ping`**: `{"t":"ping"}`, sent during discovery. The device answers with `hello`.
 
@@ -226,8 +228,9 @@ Newline-delimited JSON over the CircuitPython USB CDC data port, protocol versio
 | Message | When | Example |
 | --- | --- | --- |
 | `hello` | Boot, and in reply to `ping` | `{"t":"hello","v":2,"fw":"0.2.0"}` |
+| `key` | A1..A6 or ATTN pressed while the Claude app is in front | `{"t":"key","k":"A3"}` |
 
-The device reports nothing else. herdr already sees interrupts and focus changes, so v1's `key` and `layer` messages are gone.
+The device reports nothing else. herdr already sees interrupts and focus changes, so v1's `layer` message is gone; `key` is back only for the Claude app, which has no shortcut to open a given session (see Claude app mode). The pad drops it if the host isn't reading.
 
 ### Liveness
 
@@ -320,7 +323,9 @@ Wait times are measured on the pad from the first frame that shows a slot blocke
 
 ### Claude app mode
 
-While the Claude desktop app (`com.anthropic.claudefordesktop`) is in front, the same keys drive its Code tab instead of herdr. The daemon polls `lsappinfo` every 250 ms in its own goroutine (no Accessibility or Screen Recording permission) and sets the frame's `app` field; a change sends a frame at once. `tally serve --no-apps` turns this off. lsappinfo tells apps apart, not tabs, so Chat and Code get the same keys; Ctrl+Tab and Cmd+N are harmless in Chat.
+While the Claude desktop app (`com.anthropic.claudefordesktop`) is in front, the same keys drive its Code tab instead of herdr. The daemon polls `lsappinfo` every 250 ms in its own goroutine (no Accessibility or Screen Recording permission) and sets the frame's `app` field; a change sends a frame at once. `tally serve --no-apps` turns this off. lsappinfo tells apps apart, not tabs, so Chat and Code get the same keys.
+
+**Sessions.** The app has no shortcut to open session N, so A1..A6 and ATTN send a `key` message and Tally opens a `claude://` link: `code/continue?session=<id>` for a session and `code/needs-input` for the one waiting for you. Tally finds sessions in the app's per-session files, `~/Library/Application Support/Claude/claude-code-sessions/*/*/local_*.json`, decoding only `sessionId`, `isArchived`, `lastActivityAt` and `lastFocusedAt`; titles and folders are never read into a struct. Slots follow the app's own "recent sessions" order: not archived, most recent activity first, so keys move as sessions work. The session with the latest `lastFocusedAt` is the one showing (`afocus`). While the app is in front the daemon rereads the files at most once a second (`asess`, `afocus`), and again on each key press so the link matches the newest order. Session ids must match the app's own pattern, `local_[A-Za-z0-9-]{1,64}`, before they go into a link. Neither the files nor the links are documented (found in Claude.app 2.31226), so either may change.
 
 The pad trusts `app` only on a live link, so a stale frame falls back to herdr's keys. Each key keeps its own action unless the app has a different shortcut or none:
 
@@ -328,13 +333,15 @@ The pad trusts `app` only on a live link, so a stale frame falls back to herdr's
 | --- | --- |
 | MODE | Cmd+Shift+M (permission mode menu; Shift+Tab doesn't cycle modes there) |
 | NEW | Cmd+N |
-| FLEET encoder | Ctrl+Tab / Ctrl+Shift+Tab (next / previous session) |
-| A1–A6, ATTN, RESUME, ZOOM, LAST, REWIND, BG | Nothing: the app has no equivalent |
+| FLEET encoder | Cmd+Shift+] / Cmd+Shift+[ (the app's Next / Previous Session menu items; Ctrl+Tab did nothing) |
+| A1–A6 | Open session 1–6, most recent activity first (through Tally) |
+| ATTN | Open the session waiting for you (through Tally) |
+| RESUME, ZOOM, LAST, REWIND, BG | Nothing: the app has no equivalent |
 | Everything else | Unchanged (ESC, YES/ALWAYS/NO as 1/2/3, TAB, LOG, COMPCT, ENTER, TALK, DRIVE encoder) |
 
 Shortcuts are from the [desktop docs](https://code.claude.com/docs/en/desktop.md); 1/2/3 on permission prompts and TALK's Right Option are untested guesses. A key's release runs the action its press chose, so switching apps mid-hold cannot strand a held key.
 
-Lighting: DRIVE shows the layout's static colors on keys that work in the app (herdr's focused agent is not what you are driving) and turns off REWIND and BG. FLEET keeps herdr's agents on A1–A6, so a waiting terminal agent still shows; ATTN, RESUME, ZOOM and LAST are off, NEW and ENTER quiet. The cross-agent alert still flashes. The OLED header reads `DRIVE CLAUDE APP    *`, line 2 is blank (or `HERDR OFFLINE`), and lines 3–4 still list herdr's waiting agents and slots.
+Lighting: DRIVE shows the layout's static colors on keys that work in the app (herdr's focused agent is not what you are driving) and turns off REWIND and BG. FLEET lights A1–A6 white at 10% for each app session and 50% for the one showing; the app's sessions have no working or waiting state Tally can read. ATTN, NEW and ENTER are quiet; RESUME, ZOOM and LAST are off. The cross-agent alert still flashes when a herdr agent starts waiting. The OLED header reads `DRIVE CLAUDE APP    *`, line 2 `SESSION 2 OF 3` (or `HERDR OFFLINE`), line 3 herdr's waiting agents marked `HERDR`, and line 4 herdr's slots.
 
 ## Security, privacy, failure modes
 

@@ -37,7 +37,13 @@ tally status          # herdr's agents in FLEET key order
 
 ### In the Claude app
 
-When the Claude desktop app is in front, Tally tells the pad, and the same keys drive Claude Code there: MODE opens the permission mode menu (Cmd+Shift+M), NEW starts a session (Cmd+N), and the FLEET encoder cycles sessions (Ctrl+Tab). Keys with no app equivalent (A1–A6, ATTN, RESUME, ZOOM, LAST, REWIND, BG) do nothing and go dark; the rest send the same keys as in the terminal. A1–A6 keep showing your herdr agents, and the OLED header says `CLAUDE APP`. `tally serve --no-apps` turns this off.
+When the Claude desktop app is in front, Tally tells the pad, and the same keys drive Claude Code there:
+
+- **A1–A6** open the app's Code sessions, most recently active first, and light white (brighter for the one showing). **ATTN** opens the session waiting for you. The pad asks Tally, which opens the app's `claude://` links.
+- **The FLEET encoder** steps through sessions (Cmd+Shift+] / [), **MODE** opens the permission mode menu (Cmd+Shift+M), and **NEW** starts a session (Cmd+N).
+- RESUME, ZOOM, LAST, REWIND and BG have no app equivalent: they do nothing and go dark. The other keys send the same keys as in the terminal.
+
+The OLED header says `CLAUDE APP`, line 2 says which session is showing (`SESSION 2 OF 3`), and the lines below still show your herdr agents. `tally serve --no-apps` turns this off.
 
 ### Reading the OLED
 

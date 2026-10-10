@@ -108,12 +108,23 @@ def _waiting(frame, waits, now):
     return _fit(parts)
 
 
+def _app_sessions(frame):
+    """SESSION 2 OF 3, or how many there are."""
+    count, focus = frame.get("asess"), frame.get("afocus")
+    if not isinstance(count, int) or count < 1:
+        return "NO SESSIONS"
+    if isinstance(focus, int) and 1 <= focus <= count:
+        return "SESSION {} OF {}".format(focus, count)
+    return "{} SESSION{}".format(count, "" if count == 1 else "S")
+
+
 def lines(layer, frame, status, too_new=False, waits=None, now=0):
     """The four status lines, or None when Tally has never sent a frame
     (keep the layer's label grid).
 
-    While the Claude app is in front, the header says so and the state line
-    is blank; the waiting list and slot strip still follow herdr.
+    While the Claude app is in front, the header says so, the state line
+    counts its sessions, and the waiting list (marked HERDR) and slot strip
+    still follow herdr.
 
     layer: a code.py LAYERS entry; frame, status: as for render.render;
     too_new: the host speaks a newer protocol than this firmware;
@@ -149,10 +160,11 @@ def lines(layer, frame, status, too_new=False, waits=None, now=0):
                 state = _fit([state, waits.age(focus, now)], " ")
         else:
             state = "NO AGENT FOCUSED"
-        if app:
-            state = ""  # the keys drive the app, not herdr's focused agent
         summary = _waiting(frame, waits, now)
         slots = strip(frame)
+        if app:  # the keys drive the app, not herdr's focused agent
+            state = _app_sessions(frame)
+            summary = ("HERDR " + summary) if summary else ""
 
     return [line[:WIDTH] for line in (head, state, summary, slots)]
 
