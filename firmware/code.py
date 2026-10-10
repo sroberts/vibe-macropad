@@ -168,9 +168,34 @@ status_screen = oled.StatusScreen(macropad.display)
 oled_screen = None  # what the OLED shows
 oled_input = None   # what its status lines were built from
 
+# While the Claude app is in front (Tally watches the frontmost app), keys
+# send its shortcuts instead: these replace a key's action by OLED label,
+# keys in render.APP_UNMAPPED send nothing, and every other key keeps its own.
+APP_KEYS = {
+    "MODE": lambda: combo(KC.COMMAND, KC.SHIFT, KC.M),  # permission mode menu
+    "NEW": lambda: combo(KC.COMMAND, KC.N),             # new session
+}
+APP_ENCODER = {  # layer name: (cw, ccw)
+    "FLEET": (lambda: combo(KC.CONTROL, KC.TAB), lambda: combo(KC.CONTROL, KC.SHIFT, KC.TAB)),
+}
+
 
 def ms():
     return time.monotonic_ns() // 1000000
+
+
+def in_app(now):
+    return link is not None and render.app_mode(link.frame, link.status(now))
+
+
+def key_action(layer, n, app):
+    """What key n does on layer: its own action, or the Claude app's."""
+    label, _, action = layer["keys"][n]
+    if not app:
+        return action
+    if label in render.APP_UNMAPPED:
+        return None
+    return APP_KEYS.get(label, action)
 
 
 def show_status(index, frame, status, now):
@@ -212,6 +237,7 @@ def paint(index, held, now):
 layer_index = 0
 last_position = macropad.encoder
 held = set()
+pressed = {}  # key number: the action its press ran, so release matches it
 next_paint = 0
 
 while True:
@@ -221,22 +247,27 @@ while True:
     event = macropad.keys.events.get()
     if event:
         n = event.key_number
-        action = layer["keys"][n][2]
         if event.pressed:
+            action = key_action(layer, n, in_app(ms()))
+            pressed[n] = action
             held.add(n)
             if isinstance(action, Hold):
                 action.down()
-            else:
+            elif action:
                 action()
             next_paint = 0  # show the press now
         else:
             held.discard(n)
+            action = pressed.pop(n, None)
             if isinstance(action, Hold):
                 action.up()
 
     position = macropad.encoder
     if position != last_position:
-        step = layer["cw"] if position > last_position else layer["ccw"]
+        cw, ccw = layer["cw"], layer["ccw"]
+        if layer["name"] in APP_ENCODER and in_app(ms()):
+            cw, ccw = APP_ENCODER[layer["name"]]
+        step = cw if position > last_position else ccw
         for _ in range(abs(position - last_position)):
             step()
         last_position = position
@@ -245,6 +276,7 @@ while True:
     if macropad.encoder_switch_debounced.pressed:
         kbd.release_all()  # never leave a held key stuck across layers
         held.clear()
+        pressed.clear()
         layer_index = (layer_index + 1) % len(LAYERS)
         layer = LAYERS[layer_index]
         next_paint = 0

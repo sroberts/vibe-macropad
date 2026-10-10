@@ -12,6 +12,7 @@ import (
 
 	"github.com/sroberts/vibe-macropad/internal/daemon"
 	"github.com/sroberts/vibe-macropad/internal/device"
+	"github.com/sroberts/vibe-macropad/internal/front"
 	"github.com/sroberts/vibe-macropad/internal/herdr"
 	"github.com/sroberts/vibe-macropad/internal/slots"
 )
@@ -22,8 +23,12 @@ func serve(args []string) error {
 	cfg := daemon.Defaults()
 	fs.IntVar(&cfg.Slots, "slots", cfg.Slots, "number of Fleet slot keys")
 	verbose := fs.Bool("verbose", false, "also log every frame sent to the pad")
+	noApps := fs.Bool("no-apps", false, "don't watch the frontmost app (the pad always sends herdr's keys)")
 	fs.Usage = func() { fmt.Fprint(os.Stderr, usage) }
 	fs.Parse(args)
+	if !*noApps {
+		cfg.Front = front.Frontmost
+	}
 
 	path, err := herdr.SocketPath()
 	if err != nil {

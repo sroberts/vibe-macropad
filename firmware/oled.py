@@ -1,7 +1,7 @@
 # oled.py: Tally status lines for the MacroPad's OLED (4 lines of 21
 # characters in terminalio's 6 px font). lines() is pure, so CPython runs its
 # tests on the host; StatusScreen imports displayio only when built.
-from render import LIVE, NONE, SLOT_LABELS, STALE
+from render import LIVE, NONE, SLOT_LABELS, STALE, app_mode
 
 WIDTH = 21
 WORDS = {"N": "NEEDS APPROVAL", "G": "DONE", "W": "WORKING", "R": "READY", "U": "UNKNOWN"}
@@ -112,6 +112,9 @@ def lines(layer, frame, status, too_new=False, waits=None, now=0):
     """The four status lines, or None when Tally has never sent a frame
     (keep the layer's label grid).
 
+    While the Claude app is in front, the header says so and the state line
+    is blank; the waiting list and slot strip still follow herdr.
+
     layer: a code.py LAYERS entry; frame, status: as for render.render;
     too_new: the host speaks a newer protocol than this firmware;
     waits: a Waits updated with frame, for timers; now: milliseconds.
@@ -127,6 +130,9 @@ def lines(layer, frame, status, too_new=False, waits=None, now=0):
     space = space if isinstance(space, str) else ""
     mark = "x" if status != LIVE else ("*" if herdr else "h")
     head = "{:<6}{:<3}{:<10} {}".format(layer["name"][:5], slot, space[:10], mark)
+    app = app_mode(frame, status)
+    if app:
+        head = "{:<6}{:<13} {}".format(layer["name"][:5], "CLAUDE APP", mark)
 
     summary = slots = ""
     if too_new:
@@ -143,6 +149,8 @@ def lines(layer, frame, status, too_new=False, waits=None, now=0):
                 state = _fit([state, waits.age(focus, now)], " ")
         else:
             state = "NO AGENT FOCUSED"
+        if app:
+            state = ""  # the keys drive the app, not herdr's focused agent
         summary = _waiting(frame, waits, now)
         slots = strip(frame)
 

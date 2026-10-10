@@ -217,6 +217,7 @@ Newline-delimited JSON over the CircuitPython USB CDC data port, protocol versio
 | `overflow` | object | Count by state for agents beyond the slot count. |
 | `herdr` | bool | `false` when the daemon cannot reach herdr's socket. |
 | `space` | string, optional | Name of the focused agent's space (herdr workspace `label`), printable ASCII, at most 10 characters. Omitted when nothing is focused or the name is empty. Older firmware ignores it. |
+| `app` | string, optional | `"claude"` while the Claude desktop app is the frontmost app; omitted otherwise. Sent whether or not herdr is reachable. Older firmware ignores it. |
 
 **`ping`**: `{"t":"ping"}`, sent during discovery. The device answers with `hello`.
 
@@ -316,6 +317,24 @@ A5 WAITING 3m  DONE 4
 4. Every slot at a glance: slot number then state code (the state table's `N`, `G`, `W`, `R`, `U`), `-` when empty, then `+N` for agents beyond the slots. So `5N` means A5 needs you and `6G` means A6 finished unseen.
 
 Wait times are measured on the pad from the first frame that shows a slot blocked, so they restart if the pad reloads, and they follow slot positions. Until Tally sends its first frame the OLED keeps the studio's label grid. The text is rebuilt only when the frame, link status or layer changes, or once a second for the timers, and each line redraws only when its text changes.
+
+### Claude app mode
+
+While the Claude desktop app (`com.anthropic.claudefordesktop`) is in front, the same keys drive its Code tab instead of herdr. The daemon polls `lsappinfo` every 250 ms in its own goroutine (no Accessibility or Screen Recording permission) and sets the frame's `app` field; a change sends a frame at once. `tally serve --no-apps` turns this off. lsappinfo tells apps apart, not tabs, so Chat and Code get the same keys; Ctrl+Tab and Cmd+N are harmless in Chat.
+
+The pad trusts `app` only on a live link, so a stale frame falls back to herdr's keys. Each key keeps its own action unless the app has a different shortcut or none:
+
+| Key | In the Claude app |
+| --- | --- |
+| MODE | Cmd+Shift+M (permission mode menu; Shift+Tab doesn't cycle modes there) |
+| NEW | Cmd+N |
+| FLEET encoder | Ctrl+Tab / Ctrl+Shift+Tab (next / previous session) |
+| A1–A6, ATTN, RESUME, ZOOM, LAST, REWIND, BG | Nothing: the app has no equivalent |
+| Everything else | Unchanged (ESC, YES/ALWAYS/NO as 1/2/3, TAB, LOG, COMPCT, ENTER, TALK, DRIVE encoder) |
+
+Shortcuts are from the [desktop docs](https://code.claude.com/docs/en/desktop.md); 1/2/3 on permission prompts and TALK's Right Option are untested guesses. A key's release runs the action its press chose, so switching apps mid-hold cannot strand a held key.
+
+Lighting: DRIVE shows the layout's static colors on keys that work in the app (herdr's focused agent is not what you are driving) and turns off REWIND and BG. FLEET keeps herdr's agents on A1–A6, so a waiting terminal agent still shows; ATTN, RESUME, ZOOM and LAST are off, NEW and ENTER quiet. The cross-agent alert still flashes. The OLED header reads `DRIVE CLAUDE APP    *`, line 2 is blank (or `HERDR OFFLINE`), and lines 3–4 still list herdr's waiting agents and slots.
 
 ## Security, privacy, failure modes
 
