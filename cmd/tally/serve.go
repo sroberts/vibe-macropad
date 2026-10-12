@@ -27,17 +27,8 @@ func serve(args []string) error {
 	noApps := fs.Bool("no-apps", false, "don't watch the frontmost app (the pad always sends herdr's keys)")
 	fs.Usage = func() { fmt.Fprint(os.Stderr, usage) }
 	fs.Parse(args)
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-	sessions := claudeapp.Dir(home)
 	if !*noApps {
 		cfg.Front = front.Frontmost
-		cfg.AppSessions = func() (int, int) {
-			s, _ := claudeapp.Load(sessions)
-			return len(s), claudeapp.Focused(s)
-		}
 	}
 
 	path, err := herdr.SocketPath()
@@ -63,13 +54,12 @@ func serve(args []string) error {
 		return port, fmt.Sprintf("%s (firmware %s, protocol v%d)", name, hello.FW, hello.V), err
 	}, log)
 	if !*noApps {
-		// The pad sends A1..A6 and ATTN here while the Claude app is in front.
+		// The pad sends ATTN here while the Claude app is in front.
 		link.OnKey = func(key string) {
 			go func() {
-				s, _ := claudeapp.Load(sessions)
-				u := claudeapp.Link(key, s)
+				u := claudeapp.Link(key)
 				if u == "" {
-					log.Debug("key opens nothing", "key", key, "sessions", len(s))
+					log.Debug("key opens nothing", "key", key)
 					return
 				}
 				if err := claudeapp.Open(u); err != nil {

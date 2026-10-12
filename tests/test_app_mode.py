@@ -48,12 +48,9 @@ def test_drive_shows_layout_colors_on_keys_that_work_in_the_app():
         assert got == (OFF if label in ("REWIND", "BG") else color), label
 
 
-def test_fleet_shows_app_sessions_on_the_slot_keys_and_darkens_unmapped_keys():
-    f = frame(asess=2, afocus=1)
-    out = render.render(FLEET, f, LIVE, set(), BLINK_ON)
-    assert out[0] == scale(WHITE, render.APP_SHOWING)
-    assert out[1] == scale(WHITE, render.APP_SESSION)
-    assert out[2:6] == [OFF] * 4
+def test_fleet_lights_the_sidebar_keys_and_darkens_unmapped_keys():
+    out = render.render(FLEET, frame(), LIVE, set(), BLINK_ON)
+    assert out[:6] == [scale(WHITE, render.QUIET)] * 6  # Cmd+1..6
     for n in (8, 9, 10):  # RESUME, ZOOM, LAST
         assert out[n] == OFF
     assert out[6] == scale(AMBER, render.QUIET)  # ATTN: asks Tally
@@ -62,9 +59,8 @@ def test_fleet_shows_app_sessions_on_the_slot_keys_and_darkens_unmapped_keys():
 
 
 def test_fleet_in_the_app_with_herdr_offline():
-    out = render.render(FLEET, frame(herdr=False, slots=[None] * 6, asess=1), LIVE, set(), 0)
-    assert out[0] == scale(WHITE, render.APP_SESSION)  # app sessions don't need herdr
-    assert out[1:6] == [OFF] * 5
+    out = render.render(FLEET, frame(herdr=False, slots=[None] * 6), LIVE, set(), 0)
+    assert out[:6] == [scale(WHITE, render.QUIET)] * 6  # Cmd+1..6 don't need herdr
     assert out[6] == scale(AMBER, render.QUIET) and out[8] == OFF
 
 
@@ -88,7 +84,7 @@ def test_unmapped_labels():
 def test_oled_names_the_app_and_keeps_herdrs_waiting_list():
     text = oled.lines(DRIVE, frame(), LIVE)
     assert text[0] == "DRIVE CLAUDE APP    *"
-    assert text[1] == "NO SESSIONS"
+    assert text[1] == "A1-A6 = CMD+1-6"
     assert text[2] == "HERDR A1 WAITING"
     assert text[3] == "1N 2W 3R 4- 5- 6-"
     assert all(len(line) <= oled.WIDTH for line in text)

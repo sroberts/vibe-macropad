@@ -171,18 +171,18 @@ oled_input = None   # what its status lines were built from
 # While the Claude app is in front (Tally watches the frontmost app), keys
 # send its shortcuts instead: these replace a key's action by OLED label,
 # keys in render.APP_UNMAPPED send nothing, and every other key keeps its own.
-# A1..A6 and ATTN have no shortcut, so they ask Tally to open the session.
-def ask_tally(label):
-    return lambda: link.send_key(label) if link else None
-
-
+# ATTN has no shortcut, so it asks Tally to open the waiting session.
 APP_KEYS = {
     "MODE": lambda: combo(KC.COMMAND, KC.SHIFT, KC.M),  # permission mode menu
     "NEW": lambda: combo(KC.COMMAND, KC.N),             # new session
-    "ATTN": ask_tally("ATTN"),                          # the session waiting for you
+    "ATTN": lambda: link.send_key("ATTN") if link else None,
+    "A1": lambda: combo(KC.COMMAND, KC.ONE),            # sidebar items 1-6
+    "A2": lambda: combo(KC.COMMAND, KC.TWO),
+    "A3": lambda: combo(KC.COMMAND, KC.THREE),
+    "A4": lambda: combo(KC.COMMAND, KC.FOUR),
+    "A5": lambda: combo(KC.COMMAND, KC.FIVE),
+    "A6": lambda: combo(KC.COMMAND, KC.SIX),
 }
-for slot in render.SLOT_LABELS:
-    APP_KEYS[slot] = ask_tally(slot)                    # sessions, most recent first
 APP_ENCODER = {  # layer name: (cw, ccw): the app's Next / Previous Session
     "FLEET": (lambda: combo(KC.COMMAND, KC.SHIFT, KC.RIGHT_BRACKET),
               lambda: combo(KC.COMMAND, KC.SHIFT, KC.LEFT_BRACKET)),

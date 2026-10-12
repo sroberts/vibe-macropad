@@ -2,7 +2,7 @@
 # Newline-delimited JSON, protocol v2 (see the Tally design doc). The device
 # answers ping with hello and keeps the last valid state frame. Nothing read
 # here can trigger HID output. send_key() tells Tally about a key it acts on
-# (A1..A6 and ATTN while the Claude app is in front).
+# (ATTN while the Claude app is in front).
 import json
 
 from render import LIVE, NONE, STALE

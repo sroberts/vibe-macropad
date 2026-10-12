@@ -18,10 +18,8 @@ type Frame struct {
 	FState   *string        `json:"fstate"`
 	Overflow map[string]int `json:"overflow"`
 	Herdr    bool           `json:"herdr"`
-	Space    string         `json:"space,omitempty"`  // focused agent's space, ASCII, at most SpaceMax
-	App      string         `json:"app,omitempty"`    // frontmost app the pad has shortcuts for ("claude")
-	ASess    int            `json:"asess,omitempty"`  // Claude app: Code sessions, the first six on A1..A6
-	AFocus   int            `json:"afocus,omitempty"` // Claude app: 1-based session it is showing; 0 unknown
+	Space    string         `json:"space,omitempty"` // focused agent's space, ASCII, at most SpaceMax
+	App      string         `json:"app,omitempty"`   // frontmost app the pad has shortcuts for ("claude")
 }
 
 // Frame turns the state into a frame with sequence number seq.

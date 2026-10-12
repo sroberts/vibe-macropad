@@ -1,4 +1,4 @@
-"""The Claude app's sessions on A1..A6, and key messages to Tally."""
+"""The Claude app: FLEET keys, the OLED, and key messages to Tally."""
 import io
 
 import oled
@@ -23,24 +23,9 @@ DRIVE = {"name": "DRIVE", "keys": [(label, GREY, None) for label in
 
 def frame(**kw):
     f = {"t": "state", "v": 2, "slots": ["N", "W", None, None, None, None], "focus": 2,
-         "fstate": "W", "overflow": {}, "herdr": True, "app": "claude", "asess": 3, "afocus": 2}
+         "fstate": "W", "overflow": {}, "herdr": True, "app": "claude"}
     f.update(kw)
     return f
-
-
-def test_slot_keys_show_the_apps_sessions():
-    out = render.render(FLEET, frame(), LIVE, set(), 100)
-    assert out[0] == scale(WHITE, render.APP_SESSION)
-    assert out[1] == scale(WHITE, render.APP_SHOWING)  # the session the app shows
-    assert out[2] == scale(WHITE, render.APP_SESSION)
-    assert out[3:6] == [OFF, OFF, OFF]                 # no fourth session
-
-
-def test_slot_keys_without_session_fields():
-    for f in (frame(asess=None, afocus=None), frame(asess="3"), frame(asess=0)):
-        assert render.render(FLEET, f, LIVE, set(), 100)[:6] == [OFF] * 6
-    out = render.render(FLEET, frame(afocus=None), LIVE, set(), 100)
-    assert out[:3] == [scale(WHITE, render.APP_SESSION)] * 3
 
 
 def test_attn_and_new_stay_quiet_and_unmapped_keys_go_dark():
@@ -55,14 +40,6 @@ def test_app_keys_that_ask_tally_are_not_unmapped():
     for label in render.SLOT_LABELS + ("ATTN",):
         assert label not in render.APP_UNMAPPED
     assert set(render.APP_UNMAPPED) == {"RESUME", "ZOOM", "LAST", "REWIND", "BG"}
-
-
-def test_oled_counts_the_apps_sessions():
-    assert oled.lines(DRIVE, frame(), LIVE)[1] == "SESSION 2 OF 3"
-    assert oled.lines(DRIVE, frame(afocus=None), LIVE)[1] == "3 SESSIONS"
-    assert oled.lines(DRIVE, frame(asess=1, afocus=None), LIVE)[1] == "1 SESSION"
-    assert oled.lines(DRIVE, frame(asess=None), LIVE)[1] == "NO SESSIONS"
-    assert oled.lines(DRIVE, frame(afocus=7), LIVE)[1] == "3 SESSIONS"
 
 
 def test_oled_marks_herdrs_waiting_list():
