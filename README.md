@@ -35,6 +35,16 @@ tally status          # herdr's agents in FLEET key order
 
 `tally serve` runs the daemon in a terminal instead. Its log is `~/Library/Logs/tally.log`, which records only connects, disconnects and errors (`tally serve --verbose` adds each frame); `tally uninstall-agent` removes the background agent.
 
+### In the Claude app
+
+When the Claude desktop app is in front, Tally tells the pad, and the same keys drive Claude Code there:
+
+- **A1–A6** open the sidebar's first six items (Cmd+1–6, the numbers you see while holding Cmd). **ATTN** opens the session waiting for you: the pad asks Tally, which opens the app's `claude://code/needs-input` link.
+- **The FLEET encoder** steps through sessions (Cmd+Shift+] / [), **MODE** opens the permission mode menu (Cmd+Shift+M), and **NEW** starts a session (Cmd+N).
+- RESUME, ZOOM, LAST, REWIND and BG have no app equivalent: they do nothing and go dark. The other keys send the same keys as in the terminal.
+
+The OLED header says `CLAUDE APP`, line 2 is a reminder (`A1-A6 = CMD+1-6`), and the lines below still show your herdr agents. `tally serve --no-apps` turns this off.
+
 ### Reading the OLED
 
 Once Tally is running, the screen shows context instead of key names (the keycaps have those):

@@ -1,7 +1,8 @@
 # tally_link.py: non-blocking reader for Tally frames on the USB CDC data port.
 # Newline-delimited JSON, protocol v2 (see the Tally design doc). The device
 # answers ping with hello and keeps the last valid state frame. Nothing read
-# here can trigger HID output.
+# here can trigger HID output. send_key() tells Tally about a key it acts on
+# (ATTN while the Claude app is in front).
 import json
 
 from render import LIVE, NONE, STALE
@@ -34,6 +35,13 @@ class Link:
             self.stream.write(HELLO)
         except OSError:
             pass  # host not reading yet; it will ping
+
+    def send_key(self, label):
+        """Ask Tally to act on a key; dropped if the host isn't reading."""
+        try:
+            self.stream.write(b'{"t":"key","k":"' + label.encode() + b'"}\n')
+        except OSError:
+            pass
 
     def poll(self, now):
         """Read whatever is waiting, never blocking. Call every loop.

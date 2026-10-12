@@ -27,6 +27,17 @@ DIMMED = 0.10     # every Fleet key while the link is stale or herdr is offline
 QUIET = 0.10      # keys with no state of their own (NEW, RESUME, MODE, ...)
 FLASH = 100       # ms per phase of the cross-agent alert: on, off, on, off
 
+# The Claude app has no shortcut for these, so while it is in front they send
+# nothing and go dark. (A1..A6 send Cmd+1..6, the sidebar's first six items.)
+APP_UNMAPPED = ("RESUME", "ZOOM", "LAST", "REWIND", "BG")
+
+
+def app_mode(frame, status):
+    """The Claude app is in front: keys send its shortcuts. Tally sets the
+    frame's app field; a stale frame can't be trusted, so it falls back to
+    herdr's keys."""
+    return status == LIVE and frame is not None and frame.get("app") == "claude"
+
 
 def scale(color, pct):
     return (int(color[0] * pct), int(color[1] * pct), int(color[2] * pct))
@@ -145,6 +156,16 @@ class Alert:
         return t // FLASH % 2 == 0
 
 
+def _app_fleet_key(label, base):
+    """FLEET in the Claude app. Tally can't see the app's sidebar, so A1..A6
+    just show that they work."""
+    if label in SLOT_LABELS:
+        return scale(WHITE, QUIET)
+    if label in APP_UNMAPPED:
+        return OFF
+    return scale(base, QUIET)
+
+
 def render(layer, frame, status, held, now, flash=False):
     """12 RGB tuples for the pad.
 
@@ -155,16 +176,25 @@ def render(layer, frame, status, held, now, flash=False):
     now: milliseconds, time.monotonic_ns() // 1000000. Integer milliseconds
         because CircuitPython floats lose precision as uptime grows.
     flash: Alert.flashing(now); every key shows amber
+
+    While the Claude app is in front (app_mode), DRIVE shows the layout's
+    colors on the keys that work there, and FLEET's slot keys are a quiet
+    white; keys in APP_UNMAPPED are off.
     """
     keys = layer["keys"]
     out = [key[1] for key in keys]  # static studio colors: the fallback
 
     live = status == LIVE and frame is not None and frame.get("herdr") is not False
+    app = app_mode(frame, status)
     if layer["name"] == "FLEET" and status != NONE and frame is not None:
         if live:
             out = [_fleet_key(key[0], key[1], frame, now) for key in keys]
         else:
             out = [scale(key[1], DIMMED) for key in keys]
+        if app:
+            out = [_app_fleet_key(key[0], key[1]) for key in keys]
+    elif layer["name"] == "DRIVE" and app:
+        out = [OFF if key[0] in APP_UNMAPPED else key[1] for key in keys]
     elif layer["name"] == "DRIVE" and live:
         out = [_drive_key(key[0], key[1], frame, now) for key in keys]
     if flash:

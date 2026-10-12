@@ -9,6 +9,9 @@
 // without events, which bounds a missed event to SafetyPoll of staleness.
 // Event payloads are never applied: herdr orders events only within a
 // subscription, not against snapshots.
+//
+// When Config.Front is set, a poller also watches which app is in front and
+// sets the frame's app field, so the pad can send that app's shortcuts.
 package daemon
 
 import (
@@ -36,12 +39,15 @@ type Config struct {
 	Debounce   time.Duration // wait for more events before a snapshot
 	SafetyPoll time.Duration // snapshot at least this often
 	Retry      time.Duration // before resubscribing after a failure
+
+	Front     func() string // the frontmost app's frame value; nil: never set app
+	FrontPoll time.Duration // how often to call Front
 }
 
 // Defaults is the design doc's configuration.
 func Defaults() Config {
 	return Config{Slots: slots.DefaultSlots, Debounce: 50 * time.Millisecond,
-		SafetyPoll: 2 * time.Second, Retry: 2 * time.Second}
+		SafetyPoll: 2 * time.Second, Retry: 2 * time.Second, FrontPoll: 250 * time.Millisecond}
 }
 
 // Daemon turns herdr's state into frames.
@@ -53,12 +59,13 @@ type Daemon struct {
 
 	invalidate chan struct{} // cap 1: one pending invalidation covers any number
 	panes      chan []string // cap 1: the latest agent pane set to watch
+	apps       chan string   // cap 1: the latest frontmost app
 }
 
 // New returns a daemon that reads h and passes each new frame to emit.
 func New(cfg Config, h Herdr, emit func(slots.Frame), log *slog.Logger) *Daemon {
 	return &Daemon{cfg: cfg, herdr: h, emit: emit, log: log,
-		invalidate: make(chan struct{}, 1), panes: make(chan []string, 1)}
+		invalidate: make(chan struct{}, 1), panes: make(chan []string, 1), apps: make(chan string, 1)}
 }
 
 // Run blocks until ctx is done.
@@ -66,9 +73,37 @@ func (d *Daemon) Run(ctx context.Context) {
 	done := make(chan struct{})
 	go func() { d.lifecycle(ctx); done <- struct{}{} }()
 	go func() { d.agentStatus(ctx); done <- struct{}{} }()
+	go func() { d.front(ctx); done <- struct{}{} }()
 	d.actor(ctx)
 	<-done
 	<-done
+	<-done
+}
+
+// front polls Config.Front and hands each change to the actor. It runs
+// outside the actor because each call starts a process.
+func (d *Daemon) front(ctx context.Context) {
+	if d.cfg.Front == nil {
+		return
+	}
+	t := time.NewTicker(d.cfg.FrontPoll)
+	defer t.Stop()
+	last := ""
+	for {
+		if app := d.cfg.Front(); app != last {
+			last = app
+			select {
+			case <-d.apps:
+			default:
+			}
+			d.apps <- app
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
 }
 
 func (d *Daemon) poke() {
@@ -85,7 +120,7 @@ func (d *Daemon) actor(ctx context.Context) {
 	debounce.Stop()
 	pending := false
 
-	var last, watched string
+	var last, watched, app string
 	var lastErr string
 	var seq uint32
 	refresh := func() {
@@ -109,6 +144,8 @@ func (d *Daemon) actor(ctx context.Context) {
 			}
 			slices.Sort(panes)
 		}
+
+		f.App = app
 
 		if set := strings.Join(panes, " "); set != watched {
 			watched = set
@@ -142,6 +179,8 @@ func (d *Daemon) actor(ctx context.Context) {
 			pending = false
 			refresh()
 		case <-poll.C:
+			refresh()
+		case app = <-d.apps:
 			refresh()
 		}
 	}
