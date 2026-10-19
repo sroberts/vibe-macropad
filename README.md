@@ -18,7 +18,7 @@ You need an Adafruit MacroPad RP2040, macOS for Tally, and [herdr](https://herdr
 1. **Install CircuitPython** (10.x) on the MacroPad, then its library: `circup install adafruit_macropad`.
 2. **Copy the firmware.** Copy every file in `firmware/` (`boot.py`, `code.py`, `render.py`, `oled.py`, `tally_link.py`) to the root of the `CIRCUITPY` drive. Unplug and replug the pad once: `boot.py` turns on the second USB serial port Tally uses, and only runs on a hard reset.
 3. **Configure herdr.** Open `MacroPad Layout Studio.html` in a browser and paste its herdr snippet into `~/.config/herdr/config.toml` (the same block is in the comment header of `firmware/code.py`). `HERDR_PREFIX` in `code.py` must match herdr's `keys.prefix` (the layout uses Ctrl+B).
-4. **Install Tally** (needs Go): see below.
+4. **Install [tally](https://github.com/sroberts/tally)**, the host daemon that lights the keys: see below.
 
 To change the keymap, edit it in the Layout Studio and export a new `code.py`; `uv run --with reportlab python keycap_sheet.py 12 macropad-keycap-sheet.pdf` rebuilds the keycap sheet (it needs the DejaVu fonts).
 
@@ -26,8 +26,10 @@ To change the keymap, edit it in the Layout Studio and export a new `code.py`; `
 
 Tally lights the FLEET keys with each herdr agent's state: amber blinking when an agent needs you, green when it finished and you haven't looked, blue breathing while it works, dim white when idle. A Go CLI reads herdr's socket (read-only) and sends frames to the pad over a second USB serial port; the pad only renders them. The design is in [`Tally MacroPad Status Lights for Claude Code.md`](<Tally MacroPad Status Lights for Claude Code.md>).
 
+tally now lives in its own repo, [sroberts/tally](https://github.com/sroberts/tally), which also serves a browser pad for your phone off the same state. Install it from there:
+
 ```bash
-go build -o ~/.local/bin/tally ./cmd/tally
+go install github.com/sroberts/tally@latest
 tally install-agent   # run tally serve in the background, now and at login
 tally doctor          # check herdr, its settings, the background agent and the pad
 tally status          # herdr's agents in FLEET key order
