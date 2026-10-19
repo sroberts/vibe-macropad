@@ -13,7 +13,7 @@ Each keycap carries both labels, DRIVE on top and FLEET below; `macropad-keycap-
 
 ## Setup
 
-You need an Adafruit MacroPad RP2040, macOS for Tally, and [herdr](https://herdr.dev) (`brew install herdr`) for the FLEET layer and the status lights.
+You need an Adafruit MacroPad RP2040, macOS or Linux for tally, and [herdr](https://herdr.dev) (`brew install herdr`) for the FLEET layer and the status lights.
 
 1. **Install CircuitPython** (10.x) on the MacroPad, then its library: `circup install adafruit_macropad`.
 2. **Copy the firmware.** Copy every file in `firmware/` (`boot.py`, `code.py`, `render.py`, `oled.py`, `tally_link.py`) to the root of the `CIRCUITPY` drive. Unplug and replug the pad once: `boot.py` turns on the second USB serial port Tally uses, and only runs on a hard reset.
@@ -24,7 +24,7 @@ To change the keymap, edit it in the Layout Studio and export a new `code.py`; `
 
 ## Tally
 
-Tally lights the FLEET keys with each herdr agent's state: amber blinking when an agent needs you, green when it finished and you haven't looked, blue breathing while it works, dim white when idle. A Go CLI reads herdr's socket (read-only) and sends frames to the pad over a second USB serial port; the pad only renders them. The design is in [`Tally MacroPad Status Lights for Claude Code.md`](<Tally MacroPad Status Lights for Claude Code.md>).
+Tally lights the FLEET keys with each herdr agent's state: amber blinking when an agent needs you, green when it finished and you haven't looked, blue breathing while it works, dim white when idle. A Go CLI reads herdr's socket (read-only) and sends frames to the pad over a second USB serial port; the pad only renders them. The design, including serial protocol v2, is in tally's [`docs/design/tally-macropad.md`](https://github.com/sroberts/tally/blob/main/docs/design/tally-macropad.md).
 
 tally now lives in its own repo, [sroberts/tally](https://github.com/sroberts/tally), which also serves a browser pad for your phone off the same state. Install it from there:
 
@@ -70,13 +70,11 @@ The same states drive the FLEET key colors, so `5N` on the screen means the A5 k
 | --- | --- |
 | `MacroPad Layout Studio.html` | Browser app and source of truth for the keymap; it generates `code.py` and the matching herdr config. |
 | `firmware/` | CircuitPython: `code.py` (generated), `boot.py`, `tally_link.py`, `render.py`, `oled.py`. Copy all of them to the `CIRCUITPY` drive. |
-| `cmd/tally`, `internal/` | The Tally CLI. |
 | `keycap_sheet.py` | Renders the keycap PDF. |
 
 ## Development
 
 ```bash
-go test ./...   # Go tests
 uv run pytest   # firmware tests under CPython
 ```
 
