@@ -16,7 +16,10 @@ Work follows GitHub Flow: branch, PR, merge commit on GitHub. Local hooks block 
 - `keycap_sheet.py`: renders `macropad-keycap-sheet.pdf` (a reference card plus physical keycap inserts) with reportlab. Its `DRIVE`/`FLEET`/`ENCODER` tables are a **separate hand-maintained copy** of the keymap. Keep them in sync with `code.py` when bindings change.
 - `Tally MacroPad Status Lights for Claude Code.md`: the design doc for Tally, which lights the keys with each herdr agent's state. Read it before any Tally work. It defines the serial protocol (v2 newline-delimited JSON, 512-byte cap), the slot ordering rules, the per-layer lighting tables, and the five milestones.
 
-## Tally (milestones 1–5 built: device link, herdr reader, live frames, Drive layer and OLED, packaging)
+## Tally
+
+The Go daemon (`tally`) lives in its own repo, `~/Developer/tally` (github.com/sroberts/tally), shared with the iPhone soft pad (`~/Developer/vibepad`). This repo keeps the firmware side of serial protocol v2; keep it compatible with tally's v2 frames.
+
 
 - `firmware/tally_link.py` reads frames from the USB CDC data port without blocking, answers `ping` with `hello`, and reports link status (`none` before any frame, `live`, `stale` after 15 s).
 - `firmware/render.py` is a pure function from (layer, frame, status, held keys, time) to 12 colors, with no hardware imports so it runs under CPython tests. It matches keys **by OLED label** (`A1`–`A6`, `ATTN`, `ENTER`, ...), not position, so rearranging a layout keeps the lighting right. Without a frame it returns the layout's static colors. On DRIVE it lights keys by the focused agent's `fstate` only while live, else static. Held TALK shows full purple. `render.Alert` is the cross-agent alert: it flashes when the count of blocked agents rises, not counting the focused one, and never while TALK is held.
@@ -24,21 +27,13 @@ Work follows GitHub Flow: branch, PR, merge commit on GitHub. Local hooks block 
 - The frame's optional `space` field is the focused agent's herdr workspace `label`, the one name the decoder keeps; the fixture's space labels are `space-label-N` while tab labels stay `SECRET-` markers.
 - `code.py` (and the studio's `generate()` template, which must stay identical from the `display` section down) polls the link and repaints about every 33 ms after handling keys.
 - Times are integer milliseconds from `time.monotonic_ns()`: CircuitPython floats lose precision as uptime grows.
-- `internal/herdr` is a read-only socket client: an allowlist refuses any method but `ping`, `session.snapshot` and `events.subscribe`, and the snapshot structs declare only ids, order, focus and status, so titles and cwds are dropped while decoding. herdr answers **one request per connection**, so each call dials afresh.
-- `internal/slots` maps agents to slots. Slot n is the snapshot's `agents[n-1]`: herdr's sidebar and `focus_agent` use that list's order as-is, so never re-sort it.
-- `internal/daemon` is `tally serve`: a lifecycle subscription and a per-pane `pane.agent_status_changed` subscription only invalidate. One actor goroutine debounces 50 ms, takes a snapshot, and emits a frame when it differs, with a 2 s safety poll. Event payloads are never decoded (they carry pane titles). `herdr.Subscribe` calls `notify` on the ack too, so every resubscribe reconciles.
 - `device.Link` keeps the pad connected: it rediscovers after any error, resends the current frame on connect, on `hello`, and every 5 s. `Send` never blocks.
-- `internal/launchd` writes and loads the `local.tally` LaunchAgent and parses `launchctl print`; `internal/doctor` holds `tally doctor`'s pure checks (herdr's `integration status` output, `ui.agent_panel_sort`). launchd on this macOS holds back `RunAtLoad`/`KeepAlive` starts (`pended nondemand spawn`), so install always ends with `launchctl kickstart`.
-- `cmd/tally` is the Go CLI; `internal/device` does port discovery (Adafruit VID `239A`, `/dev/cu.*` on macOS, ping each port and keep the one that answers `hello`) and frame encoding.
 
 ## Commands
 
 ```bash
-go test ./...                        # Go tests; the device tests use a pty pair as the serial port
-go test ./internal/device -run TestHandshake
 uv run pytest                        # firmware tests under CPython (tests/)
 uv run pytest tests/test_render.py::test_blocked_blinks_at_1hz
-go build -o ~/.local/bin/tally ./cmd/tally
 tally status                         # herdr's agents in Fleet key order
 tally serve                          # keep the pad's lights in step with herdr (Ctrl-C stops)
 tally install-agent                  # run tally serve as a LaunchAgent (log: ~/Library/Logs/tally.log)
@@ -50,7 +45,6 @@ tally frame '{"t":"state","v":2,"slots":["N","G","W","R","U",null],"focus":2,"fs
 uv run --with reportlab python keycap_sheet.py 12 macropad-keycap-sheet.pdf
 ```
 
-`testdata/snapshots/` holds captured `session.snapshot` responses with every private string replaced by a `SECRET-` marker; the decoder test fails if one survives.
 
 `tests/conftest.py` appends `firmware/` to `sys.path` rather than prepending it, because `firmware/code.py` would shadow the standard library's `code` module.
 
