@@ -2,6 +2,8 @@
 
 Sep 30, 2026 · @Scott J Roberts
 
+> **Where tally lives now.** The daemon this doc describes moved to its own repo, [sroberts/tally](https://github.com/sroberts/tally), which keeps the canonical copy of this doc at `docs/design/tally-macropad.md`. tally also serves the iPhone soft pad ([sroberts/vibepad](https://github.com/sroberts/vibepad)). The pad's path described here is unchanged and stays read-only: the pad still types through USB HID and tally never writes to herdr for it. The soft pad's separate write path is in tally's `docs/design/softpad.md`.
+
 ## Bottom line
 
 Tally lights each MacroPad Fleet key with the live state of the herdr agent in that sidebar slot: amber when it is blocked on you, green when it finished and you have not looked, blue while it works. herdr already tracks every agent's state, so Tally needs no Claude Code hooks: a small Go daemon on the Mac subscribes to herdr's local socket, maps agents to sidebar slots 1 through 6, and streams a full-state frame over the MacroPad's USB CDC data port. CircuitPython firmware renders the frame on the NeoPixels and OLED, aware of which layer (Drive or Fleet) is active.

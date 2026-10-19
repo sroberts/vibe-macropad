@@ -13,7 +13,7 @@ Each keycap carries both labels, DRIVE on top and FLEET below; `macropad-keycap-
 
 ## Setup
 
-You need an Adafruit MacroPad RP2040, macOS for Tally, and [herdr](https://herdr.dev) (`brew install herdr`) for the FLEET layer and the status lights.
+You need an Adafruit MacroPad RP2040, macOS or Linux for Tally, and [herdr](https://herdr.dev) (`brew install herdr`) for the FLEET layer and the status lights.
 
 1. **Install CircuitPython** (10.x) on the MacroPad, then its library: `circup install adafruit_macropad`.
 2. **Copy the firmware.** Copy every file in `firmware/` (`boot.py`, `code.py`, `render.py`, `oled.py`, `tally_link.py`) to the root of the `CIRCUITPY` drive. Unplug and replug the pad once: `boot.py` turns on the second USB serial port Tally uses, and only runs on a hard reset.
