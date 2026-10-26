@@ -1,6 +1,8 @@
 .DS_Store
 .venv/
 __pycache__/
+.coverage
+htmlcov/
 
 # Private drafts
 spec.md
