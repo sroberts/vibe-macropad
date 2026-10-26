@@ -221,3 +221,11 @@ def test_alert_never_fires_while_talk_is_held():
     a, t = alert_after(frame(), frame(slots=["N"]))
     a.update(a.frame, LIVE, True, t + 50)  # TALK pressed mid-flash
     assert not a.flashing(t + 200)
+
+
+def test_alert_does_not_flash_on_reconnect_after_stale():
+    a, t = alert_after(frame(slots=["R", "R"]))
+    a.update(a.frame, STALE, False, t + 20000)  # same frame object, link gone stale
+    reconnect = frame(slots=["N", "N"])
+    a.update(reconnect, LIVE, False, t + 30000)
+    assert not a.flashing(t + 30000)
