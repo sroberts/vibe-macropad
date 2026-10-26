@@ -15,8 +15,8 @@ Each keycap carries both labels, DRIVE on top and FLEET below; `macropad-keycap-
 
 You need an Adafruit MacroPad RP2040, macOS or Linux for tally, and [herdr](https://herdr.dev) (`brew install herdr`) for the FLEET layer and the status lights.
 
-1. **Install CircuitPython** (10.x) on the MacroPad, then its library: `circup install adafruit_macropad`.
-2. **Copy the firmware.** Copy every file in `firmware/` (`boot.py`, `code.py`, `render.py`, `oled.py`, `tally_link.py`) to the root of the `CIRCUITPY` drive. Unplug and replug the pad once: `boot.py` turns on the second USB serial port Tally uses, and only runs on a hard reset.
+1. **Install CircuitPython** (10.x) on the MacroPad, then the libraries the firmware uses: from this repo, run `circup install -r firmware/requirements.txt`. circup reads the library bundle release pinned under `[tool.circup]` in `pyproject.toml`, so every pad gets the same library versions; bump that tag to update them.
+2. **Copy the firmware.** Copy every `.py` file in `firmware/` (`boot.py`, `code.py`, `render.py`, `oled.py`, `tally_link.py`) to the root of the `CIRCUITPY` drive. Unplug and replug the pad once: `boot.py` turns on the second USB serial port Tally uses, and only runs on a hard reset.
 3. **Configure herdr.** Open `MacroPad Layout Studio.html` in a browser and paste its herdr snippet into `~/.config/herdr/config.toml` (the same block is in the comment header of `firmware/code.py`). `HERDR_PREFIX` in `code.py` must match herdr's `keys.prefix` (the layout uses Ctrl+B).
 4. **Install [tally](https://github.com/sroberts/tally)**, the host daemon that lights the keys: see below.
 
@@ -69,7 +69,7 @@ The same states drive the FLEET key colors, so `5N` on the screen means the A5 k
 | Path | What it is |
 | --- | --- |
 | `MacroPad Layout Studio.html` | Browser app and source of truth for the keymap; it generates `code.py` and the matching herdr config. |
-| `firmware/` | CircuitPython: `code.py` (generated), `boot.py`, `tally_link.py`, `render.py`, `oled.py`. Copy all of them to the `CIRCUITPY` drive. |
+| `firmware/` | CircuitPython: `code.py` (generated), `boot.py`, `tally_link.py`, `render.py`, `oled.py`, all copied to the `CIRCUITPY` drive, and `requirements.txt`, the libraries for circup. |
 | `keycap_sheet.py` | Renders the keycap PDF. |
 
 ## Development

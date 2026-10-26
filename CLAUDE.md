@@ -44,7 +44,7 @@ In this sandbox git can't read `~/.gitconfig`; prefix git with `GIT_CONFIG_GLOBA
 
 `keycap_sheet.py` needs the DejaVu fonts. It searches the Linux path and then `~/Library/Fonts` and `/Library/Fonts`; on macOS, install them with `brew install --cask font-dejavu`.
 
-Deploy firmware by copying `firmware/*.py` to the root of the `CIRCUITPY` drive; `code.py` imports `render`, `oled` and `tally_link`, so all four (`code.py`, `render.py`, `oled.py`, `tally_link.py`) must be there. The pad reloads on save. Install the library with `circup install adafruit_macropad`.
+Deploy firmware by copying `firmware/*.py` to the root of the `CIRCUITPY` drive; `code.py` imports `render`, `oled` and `tally_link`, so all four (`code.py`, `render.py`, `oled.py`, `tally_link.py`) must be there. The pad reloads on save. Install the libraries with `circup install -r firmware/requirements.txt` from the repo root, which uses the bundle release pinned under `[tool.circup]` in `pyproject.toml`; a new bundle import goes in `firmware/requirements.txt` (a test checks).
 
 ## Firmware constraints
 

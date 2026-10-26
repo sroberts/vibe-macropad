@@ -13,3 +13,8 @@ package = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# The CircuitPython library bundle circup installs firmware/requirements.txt
+# from, when run in this repo.
+[tool.circup.bundle-versions]
+"adafruit/Adafruit_CircuitPython_Bundle" = "20261023"
