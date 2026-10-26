@@ -26,7 +26,7 @@ To change the keymap, edit it in the Layout Studio and export a new `code.py`; `
 
 Tally lights the FLEET keys with each herdr agent's state: amber blinking when an agent needs you, green when it finished and you haven't looked, blue breathing while it works, dim white when idle. A Go CLI reads herdr's socket (read-only) and sends frames to the pad over a second USB serial port; the pad only renders them. The design, including serial protocol v2, is in tally's [`docs/design/tally-macropad.md`](https://github.com/sroberts/tally/blob/main/docs/design/tally-macropad.md).
 
-tally now lives in its own repo, [sroberts/tally](https://github.com/sroberts/tally), which also serves a browser pad for your phone off the same state. Install it from there:
+tally is developed in its own repo, [sroberts/tally](https://github.com/sroberts/tally), and also serves a browser pad for your phone off the same state. Install it with Go:
 
 ```bash
 go install github.com/sroberts/tally@latest
@@ -50,7 +50,7 @@ A5 WAITING 3m  DONE 4
 
 1. **Layer, focused agent, its space name, link.** `A1` is the agent you're looking at (`+` when it's beyond the six keys). The last character is the link: `*` live, `x` Tally has stopped sending (`TALLY OFFLINE`), `h` herdr isn't running (`HERDR OFFLINE`).
 2. **What the focused agent is doing**, in words. `NEEDS APPROVAL 5m` says how long it has waited.
-3. **Who else needs you.** Agents waiting on you, longest first, with how long (`A5 WAITING 3m`, or `WAIT A3 4m A1 1m` for several), `+1 WAIT` for waiting agents beyond the six keys, and `DONE 4` for agents that finished while you were elsewhere. Wait times count from when the pad first saw the agent waiting.
+3. **Who else needs you.** Agents waiting on you, longest first, with how long (`A5 WAITING 3m`, or `WAIT A3 4m A1 1m` for several), `+1 WAIT` for waiting agents beyond the six keys, and `DONE 4` for agents that finished while you were elsewhere. Wait times count from when the pad first saw the agent waiting, and they belong to the slot rather than the agent: frames carry no agent ids, so an agent that moves to another slot while waiting starts its timer again.
 4. **Every slot at a glance.** One entry per FLEET key: the slot number (A1–A6) followed by a state code, then `+N` for agents beyond the six keys. The pad has six slot keys, so if tally runs with `--slots` above 6 the extra slots count toward `+N` too.
 
 | Code | Means | Key light |
