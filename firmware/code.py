@@ -73,8 +73,6 @@ def rewind():
     """Double ESC opens Claude Code's rewind menu. The main loop sends the
     second ESC DOUBLE_TAP_GAP later, so the pad never sleeps."""
     global rewind_due
-    if rewind_due is not None:
-        combo(KC.ESCAPE)  # finish the last rewind first
     combo(KC.ESCAPE)
     rewind_due = ms() + int(DOUBLE_TAP_GAP * 1000)
 
@@ -223,9 +221,10 @@ next_paint = 0
 while True:
     layer = LAYERS[layer_index]
 
-    if rewind_due is not None:
-        # Rewind's second ESC. Keys and the encoder wait in their queues until
-        # it has gone out, so keystrokes keep their order; the lights keep running.
+    # Rewind's second ESC. Keys, the encoder and its switch wait until it has
+    # gone out, so keystrokes keep their order; the lights keep running.
+    reading = rewind_due is None
+    if not reading:
         if ms() >= rewind_due:
             combo(KC.ESCAPE)
             rewind_due = None
@@ -247,13 +246,17 @@ while True:
                 if isinstance(action, Hold):
                     action.up()
 
+    if reading and rewind_due is None:
+        # One detent at a time: a step that rewinds holds back the rest.
         position = macropad.encoder
         if position != last_position:
-            step = layer["cw"] if position > last_position else layer["ccw"]
-            for _ in range(abs(position - last_position)):
+            way = 1 if position > last_position else -1
+            step = layer["cw"] if way > 0 else layer["ccw"]
+            while position != last_position and rewind_due is None:
                 step()
-            last_position = position
+                last_position += way
 
+    if reading and rewind_due is None:
         macropad.encoder_switch_debounced.update()
         if macropad.encoder_switch_debounced.pressed:
             kbd.release_all()  # never leave a held key stuck across layers

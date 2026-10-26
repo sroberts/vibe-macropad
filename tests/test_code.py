@@ -1,7 +1,7 @@
 """Smoke tests for firmware/code.py's main loop against fake hardware."""
 import json
 
-from fake_macropad import load_code, press, push, release, turn
+from fake_macropad import code_globals, load_code, press, push, release, turn
 from render import LIVE, NONE
 from test_tally_link import FakeData
 
@@ -66,3 +66,27 @@ def test_status_lines_rebuild_only_when_their_inputs_change(monkeypatch):
     code.show_status(0, None, NONE, 6000)       # back to the label grid
     assert len(updates) == 3 and code.oled_screen is code.SCREENS[0]
     assert ("screen", "DRIVE") in code.macropad.log
+
+
+def test_encoder_waits_for_rewinds_second_escape(monkeypatch):
+    def rewind_and_turn(pad):
+        pad.encoder += 1
+        return press(REWIND)
+
+    code = load_code(monkeypatch, [rewind_and_turn, release(REWIND)])
+    assert [e for e in keys(code.macropad.log) if e[0] == "press"] == \
+        [("press", "ESCAPE"), ("press", "ESCAPE"), ("press", "DOWN_ARROW")]
+
+
+def test_rewind_on_the_encoder_keeps_each_gap(monkeypatch):
+    def bind_rewind_and_turn_twice(pad):
+        g = code_globals()
+        g["LAYERS"][0]["cw"] = g["rewind"]
+        pad.encoder += 2
+
+    code = load_code(monkeypatch, [bind_rewind_and_turn_twice, None, None])
+    log = code.macropad.log
+    escapes = [i for i, e in enumerate(log) if e == ("press", "ESCAPE")]
+    assert len(escapes) == 4 and code.last_position == 2
+    for first, second in (escapes[0:2], escapes[2:4]):
+        assert any(e[0] == "pixels" for e in log[first:second])  # each rewind's 80 ms gap

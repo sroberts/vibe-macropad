@@ -124,6 +124,15 @@ def turn(by):
     return step
 
 
+def code_globals():
+    """code.py's globals, from inside a script step (code.py's main loop is
+    on the stack)."""
+    frame = sys._getframe(1)
+    while frame.f_globals.get("__name__") != "firmware_code":
+        frame = frame.f_back
+    return frame.f_globals
+
+
 def push(pad):
     pad.encoder_switch_debounced.next = True
 

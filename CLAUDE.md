@@ -22,7 +22,7 @@ Work follows GitHub Flow: branch, PR, merge commit on GitHub. Local hooks block 
 - `firmware/render.py` is a pure function from (layer, frame, status, held keys, time) to 12 colors, with no hardware imports so it runs under CPython tests. It matches keys **by OLED label** (`A1`–`A6`, `ATTN`, `ENTER`, ...), not position, so rearranging a layout keeps the lighting right. Without a frame it returns the layout's static colors. On DRIVE it lights keys by the focused agent's `fstate` only while live, else static. Held TALK shows full purple. `render.Alert` is the cross-agent alert: it flashes when the count of blocked agents rises, not counting the focused one, and never while TALK is held.
 - `firmware/oled.py`: `lines()` is pure (4 status lines, or `None` to keep the label grid before Tally's first frame): space name, state, who is waiting and for how long (`Waits`, timed on the pad), and a slot strip. No key hints: the keycaps carry the labels. `StatusScreen` imports displayio only when built.
 - The frame's optional `space` field is the focused agent's herdr workspace `label`.
-- `code.py` (and the studio's `generate()` template, which must stay identical from the `display` section down) polls the link and repaints about every 33 ms after handling keys.
+- `code.py` (and the studio's `generate()` template, which must stay identical in the `primitives` section and from the `display` section down; `tests/test_generator.py` checks) polls the link and repaints about every 33 ms after handling keys.
 - Times are integer milliseconds from `time.monotonic_ns()`: CircuitPython floats lose precision as uptime grows.
 
 ## Commands
