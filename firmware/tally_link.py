@@ -73,8 +73,10 @@ class Link:
             self.hello()
         elif t == "state":
             v = msg.get("v")
-            if not isinstance(v, int) or v > VERSION:
-                self.too_new = isinstance(v, int)
+            if isinstance(v, bool) or not isinstance(v, int) or v != VERSION:
+                # Only a newer version asks for a firmware update; an older
+                # or malformed one is dropped and the link goes stale.
+                self.too_new = isinstance(v, int) and not isinstance(v, bool) and v > VERSION
                 return
             self.too_new = False
             self.frame = msg
