@@ -5,7 +5,7 @@ from fake_macropad import load_code, press, push, release, turn
 from render import LIVE, NONE
 from test_tally_link import FakeData
 
-TALK = 10
+TALK, REWIND, ESC = 10, 2, 0
 
 
 def keys(log):
@@ -29,6 +29,15 @@ def test_encoder_steps_per_detent(monkeypatch):
     code = load_code(monkeypatch, [turn(2), turn(-1)])
     assert keys(code.macropad.log) == [("press", "DOWN_ARROW"), ("release_all",)] * 2 + \
         [("press", "UP_ARROW"), ("release_all",)]
+
+
+def test_rewind_sends_two_escapes_without_blocking(monkeypatch):
+    code = load_code(monkeypatch, [press(REWIND), release(REWIND), press(ESC)])
+    log = code.macropad.log
+    escapes = [i for i, e in enumerate(log) if e == ("press", "ESCAPE")]
+    assert len(escapes) == 3  # ESC, ESC from REWIND, then the ESC key
+    assert any(e[0] == "pixels" for e in log[escapes[0]:escapes[1]])  # lights ran in the gap
+    assert code.rewind_due is None
 
 
 def test_label_grid_until_tally_speaks(monkeypatch):
