@@ -51,7 +51,7 @@ A5 WAITING 3m  DONE 4
 1. **Layer, focused agent, its space name, link.** `A1` is the agent you're looking at (`+` when it's beyond the six keys). The last character is the link: `*` live, `x` Tally has stopped sending (`TALLY OFFLINE`), `h` herdr isn't running (`HERDR OFFLINE`).
 2. **What the focused agent is doing**, in words. `NEEDS APPROVAL 5m` says how long it has waited.
 3. **Who else needs you.** Agents waiting on you, longest first, with how long (`A5 WAITING 3m`, or `WAIT A3 4m A1 1m` for several), `+1 WAIT` for waiting agents beyond the six keys, and `DONE 4` for agents that finished while you were elsewhere. Wait times count from when the pad first saw the agent waiting.
-4. **Every slot at a glance.** One entry per FLEET key: the slot number (A1–A6) followed by a state code, then `+N` for agents beyond the six keys.
+4. **Every slot at a glance.** One entry per FLEET key: the slot number (A1–A6) followed by a state code, then `+N` for agents beyond the six keys. The pad has six slot keys, so if tally runs with `--slots` above 6 the extra slots count toward `+N` too.
 
 | Code | Means | Key light |
 | --- | --- | --- |
