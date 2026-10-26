@@ -105,3 +105,24 @@ def test_waiting_without_timers():
 def test_slot_strip():
     assert oled.strip(frame(slots=["W", None, "U", "R", "G", "N"])) == "1W 2- 3U 4R 5G 6N"
     assert oled.strip(frame(overflow={"R": 2, "N": 1})) == "1- 2- 3- 4- 5- 6-  +3"
+
+
+def test_more_slots_than_keys_fold_into_the_overflow():
+    # tally serve --slots 8: the two slots without keys count as overflow.
+    f = frame(slots=["W", "R", None, "R", "R", "R", "N", "G"], focus=7, fstate="N",
+              overflow={"R": 1})
+    lines = oled.lines(DRIVE, f, LIVE)
+    assert lines[0].startswith("DRIVE +  ")
+    assert lines[1] == "+ NEEDS APPROVAL"
+    assert lines[2] == ""  # the waiting agent is the focused one
+    assert lines[3] == "1W 2R 3- 4R 5R 6R  +3"
+    other = dict(f, focus=1, fstate="W")
+    assert oled.lines(FLEET, other, LIVE)[2:] == ["+1 WAIT", "1W 2R 3- 4R 5R 6R  +3"]
+    for line in oled.lines(DRIVE, dict(f, slots=["N"] * 12), LIVE):
+        assert len(line) <= oled.WIDTH
+
+
+def test_waits_track_only_the_slot_keys():
+    w = oled.Waits()
+    w.update(frame(slots=["N"] * 8), 0)
+    assert len(w.since) == 6

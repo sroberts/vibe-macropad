@@ -15,16 +15,33 @@ def _slot(focus):
     return ""
 
 
-def _slots(frame):
+def _all_slots(frame):
     slots = frame.get("slots") if frame else None
     return slots if isinstance(slots, list) else []
 
 
+def _slots(frame):
+    """The slots that have keys. tally --slots can send more than the pad's
+    six; the OLED counts the rest with the overflow."""
+    return _all_slots(frame)[:len(SLOT_LABELS)]
+
+
 def _overflow(frame, code=None):
+    beyond = [c for c in _all_slots(frame)[len(SLOT_LABELS):]
+              if isinstance(c, str) and (code is None or c == code)]
     overflow = frame.get("overflow")
     if not isinstance(overflow, dict):
+        return len(beyond)
+    return len(beyond) + sum(n for c, n in overflow.items()
+                             if isinstance(n, int) and (code is None or c == code))
+
+
+def _focus(frame):
+    """Focused slot, with 0 for an agent beyond the slot keys."""
+    focus = frame.get("focus")
+    if isinstance(focus, int) and focus > len(SLOT_LABELS):
         return 0
-    return sum(n for c, n in overflow.items() if isinstance(n, int) and (code is None or c == code))
+    return focus
 
 
 def age(ms):
@@ -88,7 +105,7 @@ def strip(frame):
 
 def _waiting(frame, waits, now):
     """Agents waiting on you other than the focused one, longest first."""
-    focus = frame.get("focus")
+    focus = _focus(frame)
     blocked = [i + 1 for i, c in enumerate(_slots(frame)) if c == "N" and i + 1 != focus]
     if waits:
         blocked.sort(key=lambda n: waits.start(n, now))
@@ -121,7 +138,7 @@ def lines(layer, frame, status, too_new=False, waits=None, now=0):
     frame = frame or {}
     herdr = frame.get("herdr") is not False
     live = status == LIVE and herdr
-    focus = frame.get("focus")
+    focus = _focus(frame)
     slot = _slot(focus) if live else ""
     space = frame.get("space") if live else ""
     space = space if isinstance(space, str) else ""

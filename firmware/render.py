@@ -120,12 +120,15 @@ class Alert:
         TALK is held."""
         if talk:
             self.start = None
+        if frame is None or status != LIVE or frame.get("herdr") is False:
+            # No flash for state seen on (re)connect. Checked before the
+            # same-frame shortcut: going stale keeps the last frame object.
+            self.frame = frame
+            self.waiting = None
+            return
         if frame is self.frame:
             return
         self.frame = frame
-        if frame is None or status != LIVE or frame.get("herdr") is False:
-            self.waiting = None  # no flash for state seen on (re)connect
-            return
         waiting, focused = _waiting(frame), frame.get("fstate") == "N"
         if self.waiting is not None and not talk:
             new = waiting - self.waiting

@@ -133,3 +133,35 @@ def test_newer_protocol_is_ignored_and_flagged():
     link.poll(0)
     assert link.frame is not None
     assert not link.too_new
+
+
+def test_older_protocol_is_ignored_without_asking_for_an_update():
+    data = FakeData()
+    link = Link(data)
+    for v in (1, 0, -1):
+        data.feed(state(v=v))
+        link.poll(0)
+        assert link.frame is None and not link.too_new
+    assert link.status(0) == NONE
+
+
+def test_boolean_version_is_ignored():
+    data = FakeData()
+    link = Link(data)
+    data.feed(state(v=True))
+    link.poll(0)
+    assert link.frame is None and not link.too_new
+
+
+def test_older_frame_after_newer_clears_the_update_flag():
+    data = FakeData()
+    link = Link(data)
+    data.feed(state(v=2, seq=1))
+    link.poll(0)
+    data.feed(state(v=3))
+    link.poll(1)
+    assert link.too_new
+    data.feed(state(v=1, seq=5))
+    link.poll(2)
+    assert not link.too_new and link.frame["seq"] == 1
+    assert link.status(2 + STALE_AFTER) == STALE

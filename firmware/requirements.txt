@@ -1,0 +1,6 @@
+# Libraries from the Adafruit CircuitPython Bundle that the firmware imports.
+# circup install -r firmware/requirements.txt adds each one with its own
+# dependencies; run it from the repo so circup uses the bundle release
+# pinned under [tool.circup] in pyproject.toml.
+adafruit_macropad
+adafruit_display_text
